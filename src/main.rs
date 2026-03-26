@@ -6,7 +6,7 @@ use routes::router1;
 fn create_app() -> Router {
     Router::new()
         .route("/", get(|| async { "hello" }))
-        .merge(router1::create_router())
+        .nest("/router1", router1::create_router())
 }
 
 #[tokio::main]
