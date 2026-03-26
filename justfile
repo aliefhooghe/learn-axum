@@ -9,6 +9,12 @@ migrate *ARGS:
 update_entities:
     sea-orm-cli generate entity -u $DATABASE_URL -o ./src/entities/
 
+run-server:
+    cargo run --bin server
+
+run-server-release:
+    cargo run --release --bin server
+
 start-postgres:
     docker run --rm -d \
       --name my-postgres \

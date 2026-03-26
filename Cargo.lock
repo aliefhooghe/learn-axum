@@ -1189,6 +1189,7 @@ dependencies = [
  "utoipa",
  "utoipa-axum",
  "utoipa-swagger-ui",
+ "uuid",
 ]
 
 [[package]]
@@ -2895,6 +2896,7 @@ dependencies = [
  "quote",
  "regex",
  "syn 2.0.117",
+ "uuid",
 ]
 
 [[package]]

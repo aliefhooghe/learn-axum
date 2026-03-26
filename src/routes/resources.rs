@@ -3,6 +3,8 @@ use serde::Serialize;
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
+use crate::AppState;
+
 #[derive(Serialize, ToSchema)]
 pub struct Resource {
     id: u32,
@@ -46,7 +48,7 @@ async fn get_resource(Path(id): Path<u32>) -> axum::Json<Resource> {
     })
 }
 
-pub fn router() -> OpenApiRouter {
+pub fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(list_resources))
         .routes(routes!(get_resource))

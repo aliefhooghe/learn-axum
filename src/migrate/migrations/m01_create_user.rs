@@ -16,7 +16,13 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(User::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(User::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(User::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key()
+                            .default(Expr::cust("gen_random_uuid()")),
+                    )
                     .col(
                         ColumnDef::new(User::Username)
                             .string()
