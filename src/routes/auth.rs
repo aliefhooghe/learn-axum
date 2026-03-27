@@ -9,8 +9,12 @@ use crate::{
     get,
     path = "/me",
     params(),
+    security(
+        ("oidc" = ["openid"])
+    ),
     responses(
-        (status = 200, description = "User information", body = Claims)
+        (status = 200, description = "User information", body = Claims),
+        (status = 401, description = "Unauthorized")
     )
 )]
 async fn get_user_info(AuthUser(claims): AuthUser) -> axum::Json<Claims> {

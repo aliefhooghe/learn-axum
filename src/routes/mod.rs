@@ -1,22 +1,38 @@
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi, oauth};
 
 use crate::AppState;
 
-pub mod auth;
-pub mod resources;
-pub mod users;
+mod auth;
+mod openapi;
+mod resources;
+mod users;
 
-#[derive(OpenApi)]
-pub struct ApiDoc;
+use openapi::ApiDoc;
 
-pub fn api_router() -> axum::Router<AppState> {
+fn swagger_ui(api: utoipa::openapi::OpenApi, client_id: &str, redirect_url: &str) -> SwaggerUi {
+    let openapi_path = "/docs/openapi.json";
+    let swagger_config = Config::with_oauth_config(
+        [openapi_path],
+        oauth::Config::new()
+            .client_id(client_id)
+            .scopes(vec!["email".into(), "profile".into(), "openid".into()])
+            .use_pkce_with_authorization_code_grant(true),
+    )
+    .oauth2_redirect_url(redirect_url);
+
+    SwaggerUi::new("/docs")
+        .url(openapi_path, api)
+        .config(swagger_config)
+}
+
+pub fn api_router(client_id: &str, redirect_url: &str) -> axum::Router<AppState> {
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest("/users", users::router())
         .nest("/resources", resources::router())
         .nest("/auth", auth::router())
         .split_for_parts();
 
-    router.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", api))
+    router.merge(swagger_ui(api, client_id, redirect_url))
 }

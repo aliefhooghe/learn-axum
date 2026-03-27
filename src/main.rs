@@ -42,7 +42,12 @@ async fn main() {
         .await
         .expect("Failed to bind server port.");
 
-    let app = routes::api_router().with_state(state);
+    let app = routes::api_router(
+        "THE_CLIENT_ID",
+        "http://localhost:5000/docs/oauth2-redirect.html",
+    )
+    .with_state(state);
+
     axum::serve(listener, app)
         .await
         .expect("Http server failure.");
