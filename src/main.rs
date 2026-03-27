@@ -9,11 +9,12 @@ use std::sync::Arc;
 
 use crate::auth::jwks::{JwksCache, fetch_jwks};
 
+// Note: AppState is copied to request handler, so copy should be fast
 #[derive(Clone)]
 pub struct AppState {
     pub db: Arc<DatabaseConnection>,
     pub jwks_cache: Arc<JwksCache>,
-    pub settings: settings::Settings,
+    pub settings: Arc<settings::Settings>,
 }
 
 #[tokio::main]
@@ -32,7 +33,7 @@ async fn main() {
     let state = AppState {
         db: Arc::new(db),
         jwks_cache: Arc::new(jwks_cache),
-        settings: settings,
+        settings: Arc::new(settings),
     };
 
     let listener = tokio::net::TcpListener::bind(&state.settings.server.listen)
