@@ -46,7 +46,10 @@ impl FromRequestParts<AppState> for AuthUser {
 
         // 4 - Validate token
         let mut validation = jsonwebtoken::Validation::new(Algorithm::RS256);
-        validation.set_issuer(&[format!("{}/realms/{}", state.issuer_url, state.realm)]);
+        validation.set_issuer(&[format!(
+            "{}/realms/{}",
+            state.settings.oauth.issuer_url, state.settings.oauth.realm
+        )]);
         validation.set_audience(&["account"]);
         let token_data: TokenData<Claims> = jsonwebtoken::decode(token, key, &validation)
             .inspect_err(|err| eprintln!("token decode error: {err}"))

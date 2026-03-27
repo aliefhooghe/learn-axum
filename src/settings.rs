@@ -1,0 +1,38 @@
+use config::{Config, ConfigError, Environment, File};
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ServerSettings {
+    pub listen: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DatabaseSettings {
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OAuthSettings {
+    pub issuer_url: String,
+    pub client_id: String,
+    pub realm: String,
+    pub redirect_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Settings {
+    pub server: ServerSettings,
+    pub database: DatabaseSettings,
+    pub oauth: OAuthSettings,
+}
+
+impl Settings {
+    pub fn new() -> Result<Self, ConfigError> {
+        let s = Config::builder()
+            .add_source(File::with_name("settings.json").required(false))
+            .add_source(Environment::with_prefix("APP").separator("__"))
+            .build()?;
+
+        s.try_deserialize()
+    }
+}

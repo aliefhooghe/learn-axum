@@ -1,9 +1,10 @@
 mod auth;
-mod database;
 mod entities;
 mod routes;
 mod schemas;
-use sea_orm::DatabaseConnection;
+mod settings;
+
+use sea_orm::{Database, DatabaseConnection};
 use std::sync::Arc;
 
 use crate::auth::jwks::{JwksCache, fetch_jwks};
@@ -12,39 +13,35 @@ use crate::auth::jwks::{JwksCache, fetch_jwks};
 pub struct AppState {
     pub db: Arc<DatabaseConnection>,
     pub jwks_cache: Arc<JwksCache>,
-    pub issuer_url: String,
-    pub realm: String,
+    pub settings: settings::Settings,
 }
 
 #[tokio::main]
 async fn main() {
-    let db = database::connect()
+    let settings = settings::Settings::new().expect("failed to retrieve settings.");
+    let db = Database::connect(&settings.database.url)
         .await
         .expect("Database connection failure");
 
-    let issuer_url = "http://localhost:8080";
-    let realm = "master";
-
-    // TODO: request OIDC at "http://localhost:8080/realms/master/.well-known/openid-configuration",
+    // TODO: request OIDC at "http://issuer/realms/master/.well-known/openid-configuration",
     // TODO: renew jwks cache
-    let jwks_cache = fetch_jwks(issuer_url, realm)
+    let jwks_cache = fetch_jwks(&settings.oauth.issuer_url, &settings.oauth.realm)
         .await
         .expect("could no retrieve jwks cache.");
 
     let state = AppState {
         db: Arc::new(db),
         jwks_cache: Arc::new(jwks_cache),
-        issuer_url: issuer_url.into(),
-        realm: realm.into(),
+        settings: settings,
     };
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:5000")
+    let listener = tokio::net::TcpListener::bind(&state.settings.server.listen)
         .await
         .expect("Failed to bind server port.");
 
     let app = routes::api_router(
-        "THE_CLIENT_ID",
-        "http://localhost:5000/docs/oauth2-redirect.html",
+        &state.settings.oauth.client_id,
+        &state.settings.oauth.redirect_url,
     )
     .with_state(state);
 
