@@ -22,6 +22,7 @@ pub struct OAuthSettings {
     pub client_id: String,
     pub realm: String,
     pub redirect_url: String,
+    pub jwks_cache_refresh_interval_sec: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

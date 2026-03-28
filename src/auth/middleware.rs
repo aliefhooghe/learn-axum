@@ -38,11 +38,14 @@ impl FromRequestParts<AppState> for AuthUser {
             .inspect_err(|_| tracing::warn!("missing key"))?;
 
         // 3 - Query key from jwks cache
-        let key = state
-            .jwks_cache
-            .get(&kid)
-            .ok_or(StatusCode::UNAUTHORIZED)
-            .inspect_err(|_| tracing::warn!("jwks cache miss"))?;
+        let key = {
+            let cache = state.jwks_cache.read().await;
+            cache
+                .get(&kid)
+                .ok_or(StatusCode::UNAUTHORIZED)
+                .inspect_err(|_| tracing::warn!("jwks cache miss"))?
+                .clone()
+        };
 
         // 4 - Validate token
         let mut validation = jsonwebtoken::Validation::new(Algorithm::RS256);
@@ -51,7 +54,7 @@ impl FromRequestParts<AppState> for AuthUser {
             state.settings.oauth.issuer_url, state.settings.oauth.realm
         )]);
         validation.set_audience(&["account"]);
-        let token_data: TokenData<Claims> = jsonwebtoken::decode(token, key, &validation)
+        let token_data: TokenData<Claims> = jsonwebtoken::decode(token, &key, &validation)
             .inspect_err(|err| tracing::warn!("token decode error: {err}"))
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
 

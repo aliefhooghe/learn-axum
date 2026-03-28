@@ -7,14 +7,15 @@ mod settings;
 
 use sea_orm::{Database, DatabaseConnection};
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
-use crate::auth::jwks::{JwksCache, fetch_jwks};
+use crate::auth::jwks::{JwksCache, refresh_jwks_task};
 
 // Note: AppState is copied to request handler, so copy should be fast
 #[derive(Clone)]
 pub struct AppState {
     pub db: Arc<DatabaseConnection>,
-    pub jwks_cache: Arc<JwksCache>,
+    pub jwks_cache: Arc<RwLock<JwksCache>>,
     pub settings: Arc<settings::Settings>,
 }
 
@@ -30,17 +31,16 @@ async fn main() {
         .expect("Database connection failure");
 
     // TODO: request OIDC at "http://issuer/realms/master/.well-known/openid-configuration",
-    // TODO: renew jwks cache
-    tracing::info!("retrieve jwks.");
-    let jwks_cache = fetch_jwks(&settings.oauth.issuer_url, &settings.oauth.realm)
-        .await
-        .expect("could no retrieve jwks cache.");
-
     let state = AppState {
         db: Arc::new(db),
-        jwks_cache: Arc::new(jwks_cache),
+        jwks_cache: Arc::new(RwLock::new(JwksCache::new())),
         settings: Arc::new(settings),
     };
+
+    let task_state = state.clone();
+    tokio::spawn(async {
+        refresh_jwks_task(task_state).await;
+    });
 
     tracing::info!("listening on {}.", &state.settings.server.listen);
     let listener = tokio::net::TcpListener::bind(&state.settings.server.listen)
