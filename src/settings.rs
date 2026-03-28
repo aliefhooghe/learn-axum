@@ -2,6 +2,11 @@ use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct LoggingSettings {
+    pub level: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct ServerSettings {
     pub listen: String,
 }
@@ -21,9 +26,10 @@ pub struct OAuthSettings {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
-    pub server: ServerSettings,
     pub database: DatabaseSettings,
+    pub logging: Option<LoggingSettings>,
     pub oauth: OAuthSettings,
+    pub server: ServerSettings,
 }
 
 impl Settings {

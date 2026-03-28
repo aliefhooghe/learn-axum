@@ -20,29 +20,29 @@ impl FromRequestParts<AppState> for AuthUser {
             .get("Authorization")
             .and_then(|v| v.to_str().ok())
             .ok_or(StatusCode::UNAUTHORIZED)
-            .inspect_err(|_| eprintln!("missing authorization"))?;
+            .inspect_err(|_| tracing::warn!("missing authorization"))?;
 
         let token = auth_header
             .strip_prefix("Bearer ")
             .ok_or(StatusCode::UNAUTHORIZED)
-            .inspect_err(|_| eprintln!("missing token"))?;
+            .inspect_err(|_| tracing::warn!("missing token"))?;
 
         // 2 - Read kid from JWT header
         let header = jsonwebtoken::decode_header(token)
-            .inspect_err(|err| println!("decode error: {}", err))
+            .inspect_err(|err| tracing::warn!("decode error: {}", err))
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         let kid = header
             .kid
             .ok_or(StatusCode::UNAUTHORIZED)
-            .inspect_err(|_| eprintln!("missing key"))?;
+            .inspect_err(|_| tracing::warn!("missing key"))?;
 
         // 3 - Query key from jwks cache
         let key = state
             .jwks_cache
             .get(&kid)
             .ok_or(StatusCode::UNAUTHORIZED)
-            .inspect_err(|_| eprintln!("jwks cache miss"))?;
+            .inspect_err(|_| tracing::warn!("jwks cache miss"))?;
 
         // 4 - Validate token
         let mut validation = jsonwebtoken::Validation::new(Algorithm::RS256);
@@ -52,7 +52,7 @@ impl FromRequestParts<AppState> for AuthUser {
         )]);
         validation.set_audience(&["account"]);
         let token_data: TokenData<Claims> = jsonwebtoken::decode(token, key, &validation)
-            .inspect_err(|err| eprintln!("token decode error: {err}"))
+            .inspect_err(|err| tracing::warn!("token decode error: {err}"))
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         Ok(AuthUser(token_data.claims))

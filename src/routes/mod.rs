@@ -1,3 +1,4 @@
+use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::{Config, SwaggerUi, oauth};
@@ -34,5 +35,7 @@ pub fn api_router(client_id: &str, redirect_url: &str) -> axum::Router<AppState>
         .nest("/auth", auth::router())
         .split_for_parts();
 
-    router.merge(swagger_ui(api, client_id, redirect_url))
+    router
+        .merge(swagger_ui(api, client_id, redirect_url))
+        .layer(TraceLayer::new_for_http())
 }

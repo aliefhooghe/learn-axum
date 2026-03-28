@@ -1,5 +1,6 @@
 mod auth;
 mod entities;
+mod logging;
 mod routes;
 mod schemas;
 mod settings;
@@ -20,12 +21,17 @@ pub struct AppState {
 #[tokio::main]
 async fn main() {
     let settings = settings::Settings::new().expect("failed to retrieve settings.");
+    logging::init(&settings);
+    tracing::info!("starting ...");
+
+    tracing::info!("connect to database.");
     let db = Database::connect(&settings.database.url)
         .await
         .expect("Database connection failure");
 
     // TODO: request OIDC at "http://issuer/realms/master/.well-known/openid-configuration",
     // TODO: renew jwks cache
+    tracing::info!("retrieve jwks.");
     let jwks_cache = fetch_jwks(&settings.oauth.issuer_url, &settings.oauth.realm)
         .await
         .expect("could no retrieve jwks cache.");
@@ -36,6 +42,7 @@ async fn main() {
         settings: Arc::new(settings),
     };
 
+    tracing::info!("listening on {}.", &state.settings.server.listen);
     let listener = tokio::net::TcpListener::bind(&state.settings.server.listen)
         .await
         .expect("Failed to bind server port.");
