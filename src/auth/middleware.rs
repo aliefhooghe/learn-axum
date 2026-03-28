@@ -1,6 +1,10 @@
 use super::schemas::Claims;
 use crate::AppState;
 use axum::{extract::FromRequestParts, http::request::Parts};
+use axum_extra::{
+    TypedHeader,
+    headers::{Authorization, authorization::Bearer},
+};
 use jsonwebtoken::{Algorithm, TokenData};
 use reqwest::StatusCode;
 
@@ -14,18 +18,11 @@ impl FromRequestParts<AppState> for AuthUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        // 1 - Extract token
-        let auth_header = parts
-            .headers
-            .get("Authorization")
-            .and_then(|v| v.to_str().ok())
-            .ok_or(StatusCode::UNAUTHORIZED)
-            .inspect_err(|_| tracing::warn!("missing authorization"))?;
-
-        let token = auth_header
-            .strip_prefix("Bearer ")
-            .ok_or(StatusCode::UNAUTHORIZED)
-            .inspect_err(|_| tracing::warn!("missing token"))?;
+        // 1 - Extract jwt token
+        let bearer = TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
+            .await
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let token = bearer.token();
 
         // 2 - Read kid from JWT header
         let header = jsonwebtoken::decode_header(token)

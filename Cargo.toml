@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 axum = "0.8"
+axum-extra = { version = "0.12", features = ["typed-header"] }
 config = "0.15"
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 reqwest = { version = "0.13", features = ["json"] }
