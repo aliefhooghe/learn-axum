@@ -1,10 +1,9 @@
 use crate::AppState;
-use crate::entities::prelude::User as UserEntity;
 use crate::schemas::user::User as UserSchema;
-
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
+use entity::prelude::User as UserEntity;
 use sea_orm::EntityTrait;
 use utoipa_axum::{router::OpenApiRouter, routes};
 

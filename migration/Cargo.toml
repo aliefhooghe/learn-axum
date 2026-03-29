@@ -1,0 +1,19 @@
+# See https://www.sea-ql.org/SeaORM/docs/migration/setting-up-migration/
+
+[package]
+name = "migration"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "migration"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+sea-orm-migration = { version = "1", features = [
+  "sqlx-postgres",
+  "runtime-tokio-rustls",
+  "cli",
+] }

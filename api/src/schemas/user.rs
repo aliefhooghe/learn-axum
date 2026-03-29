@@ -1,7 +1,7 @@
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::entities::user::Model;
+use entity::user::Model;
 
 #[derive(Serialize, ToSchema)]
 pub struct User {
