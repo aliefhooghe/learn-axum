@@ -1,3 +1,4 @@
+use axum::{response::Redirect, routing::get};
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
@@ -30,6 +31,7 @@ fn swagger_ui(api: utoipa::openapi::OpenApi, client_id: &str, redirect_url: &str
 
 pub fn api_router(client_id: &str, redirect_url: &str) -> axum::Router<AppState> {
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .route("/", get(|| async { Redirect::to("/docs") }))
         .nest("/users", users::router())
         .nest("/resources", resources::router())
         .nest("/auth", auth::router())
