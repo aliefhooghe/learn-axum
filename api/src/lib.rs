@@ -46,11 +46,7 @@ pub async fn main() {
         .await
         .expect("Failed to bind server port.");
 
-    let app = routes::api_router(
-        &state.settings.oauth.client_id,
-        &state.settings.oauth.redirect_url,
-    )
-    .with_state(state);
+    let app = routes::api_router(&state.settings.oauth.client_id).with_state(state);
 
     axum::serve(listener, app)
         .await

@@ -13,7 +13,7 @@ mod users;
 
 use openapi::ApiDoc;
 
-fn swagger_ui(api: utoipa::openapi::OpenApi, client_id: &str, redirect_url: &str) -> SwaggerUi {
+fn swagger_ui(api: utoipa::openapi::OpenApi, client_id: &str) -> SwaggerUi {
     let openapi_path = "/docs/openapi.json";
     let swagger_config = Config::with_oauth_config(
         [openapi_path],
@@ -21,15 +21,13 @@ fn swagger_ui(api: utoipa::openapi::OpenApi, client_id: &str, redirect_url: &str
             .client_id(client_id)
             .scopes(vec!["email".into(), "profile".into(), "openid".into()])
             .use_pkce_with_authorization_code_grant(true),
-    )
-    .oauth2_redirect_url(redirect_url);
-
+    );
     SwaggerUi::new("/docs")
         .url(openapi_path, api)
         .config(swagger_config)
 }
 
-pub fn api_router(client_id: &str, redirect_url: &str) -> axum::Router<AppState> {
+pub fn api_router(client_id: &str) -> axum::Router<AppState> {
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .route("/", get(|| async { Redirect::to("/docs") }))
         .nest("/users", users::router())
@@ -38,6 +36,6 @@ pub fn api_router(client_id: &str, redirect_url: &str) -> axum::Router<AppState>
         .split_for_parts();
 
     router
-        .merge(swagger_ui(api, client_id, redirect_url))
+        .merge(swagger_ui(api, client_id))
         .layer(TraceLayer::new_for_http())
 }
