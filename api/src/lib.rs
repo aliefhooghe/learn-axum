@@ -37,7 +37,7 @@ pub async fn main() {
     };
 
     let task_state = state.clone();
-    tokio::spawn(async {
+    let refresh_task = tokio::spawn(async {
         refresh_jwks_task(task_state).await;
     });
 
@@ -51,4 +51,8 @@ pub async fn main() {
     axum::serve(listener, app)
         .await
         .expect("Http server failure.");
+
+    tokio::join!(refresh_task)
+        .0
+        .expect("jwks refresh task join fail");
 }
