@@ -1,7 +1,9 @@
-use super::schemas::Claims;
-use crate::AppState;
-use axum::http::StatusCode;
-use axum::{extract::FromRequestParts, http::request::Parts};
+use axum::{
+    extract::{FromRequestParts, Request, State},
+    http::StatusCode,
+    middleware::Next,
+    response::Response,
+};
 use axum_extra::{
     TypedHeader,
     extract::CookieJar,
@@ -9,78 +11,64 @@ use axum_extra::{
 };
 use jsonwebtoken::{Algorithm, TokenData};
 
-// Axum token extractor
-pub struct AuthToken(pub String);
+use crate::{AppState, auth::schemas::Claims};
 
-impl FromRequestParts<AppState> for AuthToken {
-    type Rejection = StatusCode;
+pub async fn auth_middleware(
+    State(state): State<AppState>,
+    req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let (mut parts, body) = req.into_parts();
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &AppState,
-    ) -> Result<Self, Self::Rejection> {
-        Ok(AuthToken(
-            if let Ok(TypedHeader(Authorization(bearer))) =
-                TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await
-            {
-                bearer.token().to_string()
-            } else {
-                let jar = CookieJar::from_request_parts(parts, state)
-                    .await
-                    .map_err(|_| StatusCode::UNAUTHORIZED)?;
+    // 1 - Extract jwt token
+    let token = {
+        let Ok(jar) = CookieJar::from_request_parts(&mut parts, &state).await;
 
-                jar.get("token")
-                    .map(|cookie| cookie.value().to_string())
-                    .ok_or(StatusCode::UNAUTHORIZED)?
-            },
-        ))
-    }
-}
+        if let Some(token) = jar.get("token").map(|cookie| cookie.value().to_string()) {
+            token
+        } else {
+            TypedHeader::<Authorization<Bearer>>::from_request_parts(&mut parts, &state)
+                .await
+                .map(|bearer| bearer.token().to_string())
+                .map_err(|_| StatusCode::UNAUTHORIZED)
+                .inspect_err(|_| tracing::warn!("Missing authorization/cookie"))?
+        }
+    };
 
-// Axum claims extractor
-pub struct AuthUser(pub Claims);
+    // 2 - Read kid from JWT header
+    let header = jsonwebtoken::decode_header(&token)
+        .inspect_err(|err| tracing::warn!("decode error: {}", err))
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-impl FromRequestParts<AppState> for AuthUser {
-    type Rejection = StatusCode;
+    let kid = header
+        .kid
+        .ok_or(StatusCode::UNAUTHORIZED)
+        .inspect_err(|_| tracing::warn!("missing key"))?;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &AppState,
-    ) -> Result<Self, Self::Rejection> {
-        // 1 - Extract jwt token
-        let AuthToken(token) = AuthToken::from_request_parts(parts, state).await?;
-
-        // 2 - Read kid from JWT header
-        let header = jsonwebtoken::decode_header(&token)
-            .inspect_err(|err| tracing::warn!("decode error: {}", err))
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-        let kid = header
-            .kid
+    // 3 - Query key from jwks cache
+    let key = {
+        let cache = state.jwks_cache.read().await;
+        cache
+            .get(&kid)
             .ok_or(StatusCode::UNAUTHORIZED)
-            .inspect_err(|_| tracing::warn!("missing key"))?;
+            .inspect_err(|_| tracing::warn!("jwks cache miss"))?
+            .clone()
+    };
 
-        // 3 - Query key from jwks cache
-        let key = {
-            let cache = state.jwks_cache.read().await;
-            cache
-                .get(&kid)
-                .ok_or(StatusCode::UNAUTHORIZED)
-                .inspect_err(|_| tracing::warn!("jwks cache miss"))?
-                .clone()
-        };
+    // 4 - Validate token
+    let mut validation = jsonwebtoken::Validation::new(Algorithm::RS256);
+    validation.set_issuer(&[format!(
+        "{}/realms/{}",
+        state.settings.oauth.issuer_url, state.settings.oauth.realm
+    )]);
+    validation.set_audience(&["account"]);
+    let token_data: TokenData<Claims> = jsonwebtoken::decode(token, &key, &validation)
+        .inspect_err(|err| tracing::warn!("token decode error: {err}"))
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-        // 4 - Validate token
-        let mut validation = jsonwebtoken::Validation::new(Algorithm::RS256);
-        validation.set_issuer(&[format!(
-            "{}/realms/{}",
-            state.settings.oauth.issuer_url, state.settings.oauth.realm
-        )]);
-        validation.set_audience(&["account"]);
-        let token_data: TokenData<Claims> = jsonwebtoken::decode(&token, &key, &validation)
-            .inspect_err(|err| tracing::warn!("token decode error: {err}"))
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+    // 5 - Inject the claims
+    let mut req = Request::from_parts(parts, body);
+    req.extensions_mut().insert(token_data.claims);
 
-        Ok(AuthUser(token_data.claims))
-    }
+    Ok(next.run(req).await)
 }

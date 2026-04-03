@@ -48,7 +48,7 @@ pub async fn main() {
         .await
         .expect("Failed to bind server port.");
 
-    let app = routes::api_router().with_state(state);
+    let app = routes::api_router(state.clone()).with_state(state);
 
     axum::serve(listener, app)
         .await

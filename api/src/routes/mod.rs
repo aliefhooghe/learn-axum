@@ -13,7 +13,7 @@ mod users;
 #[derive(OpenApi)]
 pub struct ApiDoc;
 
-pub fn api_router() -> axum::Router<AppState> {
+pub fn api_router(state: AppState) -> axum::Router<AppState> {
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .route(
             "/",
@@ -21,7 +21,7 @@ pub fn api_router() -> axum::Router<AppState> {
         )
         .nest("/users", users::router())
         .nest("/resources", resources::router())
-        .nest("/auth", auth::router())
+        .nest("/auth", auth::router(state))
         .split_for_parts();
 
     let swagger_config = Config::default().with_credentials(true);

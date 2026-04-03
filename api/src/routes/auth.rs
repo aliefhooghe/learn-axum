@@ -1,17 +1,17 @@
 use axum::extract::State;
 use axum::http::{HeaderValue, StatusCode};
+use axum::middleware::from_fn_with_state;
 use axum::response::Redirect;
 use axum::{extract::Query, response::IntoResponse};
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
+use crate::auth::middleware::auth_middleware;
 use crate::auth::schemas::{AuthQuery, LoginQuery};
 use crate::{
     AppState,
-    auth::{
-        middleware::AuthUser,
-        schemas::{Claims, OAuth2AuthorizationCodeParams, OAuth2CallbackParams, OAuth2Token},
-    },
+    auth::schemas::{OAuth2AuthorizationCodeParams, OAuth2CallbackParams, OAuth2Token},
+    auth::{extractors::AuthUser, schemas::Claims},
 };
 
 #[utoipa::path(
@@ -109,9 +109,10 @@ async fn callback(
     Ok(response)
 }
 
-pub fn router() -> OpenApiRouter<AppState> {
+pub fn router(state: AppState) -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(get_user_info))
+        .layer(from_fn_with_state(state, auth_middleware))
         .routes(routes!(login))
         .routes(routes!(callback))
 }

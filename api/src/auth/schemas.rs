@@ -13,7 +13,7 @@ pub struct JwksResponse {
     pub keys: Vec<Jwk>,
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct Claims {
     pub sub: String,
     pub email: Option<String>,
