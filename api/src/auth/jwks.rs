@@ -6,14 +6,18 @@ use std::{collections::HashMap, time::Duration};
 
 pub type JwksCache = HashMap<String, DecodingKey>;
 
-pub async fn fetch_jwks(base_url: &str, realm: &str) -> Result<JwksCache, reqwest::Error> {
+pub async fn fetch_jwks(
+    issuer_client: &reqwest::Client,
+    base_url: &str,
+    realm: &str,
+) -> Result<JwksCache, reqwest::Error> {
     let url = format!(
         "{}/realms/{}/protocol/openid-connect/certs",
         base_url, realm
     );
 
     tracing::info!("retrieve jwks from {}", &url);
-    let response: JwksResponse = reqwest::get(&url).await?.json().await?;
+    let response: JwksResponse = issuer_client.get(&url).send().await?.json().await?;
 
     Ok(response
         .keys
@@ -41,6 +45,7 @@ pub async fn refresh_jwks_task(app_state: AppState) {
         interval.tick().await;
 
         match fetch_jwks(
+            &app_state.issuer_client,
             &app_state.settings.oauth.issuer_url,
             &app_state.settings.oauth.realm,
         )

@@ -5,10 +5,10 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8"
-axum-extra = { version = "0.12", features = ["typed-header"] }
+axum-extra = { version = "0.12", features = ["cookie", "typed-header"] }
 config = "0.15"
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
-reqwest = { version = "0.13", features = ["json"] }
+reqwest = { version = "0.13", features = ["json", "form"] }
 sea-orm = { version = "1", features = [
   "sqlx-postgres",
   "runtime-tokio-rustls",
@@ -16,6 +16,7 @@ sea-orm = { version = "1", features = [
 ] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_urlencoded = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6", features = ["trace"] }
 tracing = "0.1"
@@ -23,5 +24,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 utoipa = { version = "5", features = ["axum_extras", "uuid"] }
 utoipa-axum = "0.2"
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
-uuid = "1.22.0"
+uuid = "1.22"
+
 entity = { path = "../entity" }

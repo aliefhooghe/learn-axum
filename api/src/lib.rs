@@ -16,6 +16,7 @@ pub struct AppState {
     pub db: Arc<DatabaseConnection>,
     pub jwks_cache: Arc<RwLock<JwksCache>>,
     pub settings: Arc<settings::Settings>,
+    pub issuer_client: Arc<reqwest::Client>,
 }
 
 #[tokio::main]
@@ -34,6 +35,7 @@ pub async fn main() {
         db: Arc::new(db),
         jwks_cache: Arc::new(RwLock::new(JwksCache::new())),
         settings: Arc::new(settings),
+        issuer_client: Arc::new(reqwest::Client::new()),
     };
 
     let task_state = state.clone();
@@ -46,7 +48,7 @@ pub async fn main() {
         .await
         .expect("Failed to bind server port.");
 
-    let app = routes::api_router(&state.settings.oauth.client_id).with_state(state);
+    let app = routes::api_router().with_state(state);
 
     axum::serve(listener, app)
         .await

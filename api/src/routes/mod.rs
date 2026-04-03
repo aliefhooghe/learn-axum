@@ -2,40 +2,32 @@ use axum::{response::Redirect, routing::get};
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
-use utoipa_swagger_ui::{Config, SwaggerUi, oauth};
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::AppState;
 
 mod auth;
-mod openapi;
 mod resources;
 mod users;
 
-use openapi::ApiDoc;
+#[derive(OpenApi)]
+pub struct ApiDoc;
 
-fn swagger_ui(api: utoipa::openapi::OpenApi, client_id: &str) -> SwaggerUi {
-    let openapi_path = "/docs/openapi.json";
-    let swagger_config = Config::with_oauth_config(
-        [openapi_path],
-        oauth::Config::new()
-            .client_id(client_id)
-            .scopes(vec!["email".into(), "profile".into(), "openid".into()])
-            .use_pkce_with_authorization_code_grant(true),
-    );
-    SwaggerUi::new("/docs")
-        .url(openapi_path, api)
-        .config(swagger_config)
-}
-
-pub fn api_router(client_id: &str) -> axum::Router<AppState> {
+pub fn api_router() -> axum::Router<AppState> {
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .route("/", get(|| async { Redirect::to("/docs") }))
+        .route(
+            "/",
+            get(|| async { Redirect::to("/auth/login?redirect=../docs") }),
+        )
         .nest("/users", users::router())
         .nest("/resources", resources::router())
         .nest("/auth", auth::router())
         .split_for_parts();
 
-    router
-        .merge(swagger_ui(api, client_id))
-        .layer(TraceLayer::new_for_http())
+    let swagger_config = Config::default().with_credentials(true);
+    let swagger = SwaggerUi::new("/docs")
+        .url("/docs/openapi.json", api)
+        .config(swagger_config);
+
+    router.merge(swagger).layer(TraceLayer::new_for_http())
 }
